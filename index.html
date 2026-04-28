@@ -1,0 +1,237 @@
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Pizza Topping Generator</h2>
+
+<style>
+  .pto-wrap { max-width: 600px; margin: 0 auto; padding: 2rem 1rem 2.5rem; text-align: center; font-family: sans-serif; }
+  .pto-title { font-size: 2.8rem; margin: 0 0 0.25rem; line-height: 1; }
+  .pto-subtitle { font-size: 13px; color: #666; margin: 0 0 2rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .pto-controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+  .pto-controls select { font-size: 16px; padding: 10px 14px; min-width: 180px; flex: 1; max-width: 260px; border-radius: 8px; border: 1px solid #ccc; }
+  .pto-controls button { font-size: 16px; padding: 10px 28px; min-width: 140px; flex: 1; max-width: 200px; cursor: pointer; font-weight: 500; background: #333; color: white; border: none; border-radius: 8px; }
+  .pto-controls button:hover { background: #000; }
+  .pto-cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem; }
+  .pto-card { background: #f9f9f9; border: 0.5px solid #eee; border-radius: 12px; padding: 1.5rem 1rem; text-align: center; flex: 1; min-width: 130px; max-width: 170px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+  .pto-card-icon { font-size: 2.4rem; margin-bottom: 10px; line-height: 1; }
+  .pto-card-name { font-size: 16px; font-weight: 500; color: #111; }
+  .pto-info { font-size: 13px; color: #666; margin-top: 0.75rem; }
+  .pto-empty { color: #999; font-size: 15px; padding: 2rem 0; }
+</style>
+
+<div class="pto-wrap">
+  <div class="pto-title">🍕🎽⚙️</div>
+  <div class="pto-subtitle">Pizza Topping Generator</div>
+
+  <div class="pto-controls">
+    <select id="filter">
+      <option value="vegan">🌿 Vegan</option>
+      <option value="veggi" selected>🥦 Vegetarisch</option>
+      <option value="fisch">🐟 Fisch</option>
+      <option value="fleisch">🥩 Fleisch</option>
+    </select>
+    <button onclick="generate()">Generieren</button>
+  </div>
+
+  <div id="pto-cards-wrap">
+    <div class="pto-empty" id="empty-state">Filter auswählen und auf „Generieren" klicken</div>
+    <div id="toppings" class="pto-cards" style="display:none;"></div>
+    <div class="pto-info" id="info"></div>
+  </div>
+</div>
+
+<script>
+const CAT_ICON = { vegan: '🌿', veggi: '🥦', fisch: '🐟', fleisch: '🥩' };
+
+const RAW = `Ananas,Veggi|Vegan,Anis,Avocado,Banane,Blauschimmelkäse,Chili,Erdbeere,Grapefruit,Hartkäse,Himbeere,Kokosnuss,Koriandergrün,Mango,Meeresfrüchte,Orange,Salbei,Sardelle,Schinken,Schokolade,Schwein,Speck,Vanille,Weintraube,Weiße Schokolade,Zimt
+Anis,Veggi|Vegan,Ananas,Apfel,Auster,Banane,Basilikum,Birne,Chili,Ei,Erbsen,Erdbeere,Feige,Fetter Fisch,Gurke,Hartkäse,Huhn,Käse mit gewaschener Rinde,Kohlrübe,Kokosnuss,Lamm,Mandel,Meeresfrüchte,Melone,Minze,Möhre,Olive,Orange,Pastinake,Pilze,Rhabarber,Rind,Safran,Schokolade,Schwarze Johannisbeere,Schwein,Spargel,Speck,Tomate,Vanille,Walnuss,Weintraube,Weißfleischiger Fisch,Ziegenkäse,Zimt,Zitrone
+Apfel,Veggi|Vegan,Anis,Birne,Blutwurst,Brombeere,Butternusskürbis,Erdnuss,Gewürznelke,Hartkäse,Haselnuss,Heidelbeere,Käse mit gewaschener Rinde,Kohl,Koriandersamen,Leber,Mandel,Mango,Meeresfrüchte,Meerrettich,Möhre,Muskat,Orange,Rose,Rote Bete,Salbei,Schwein,Sellerie,Speck,Vanille,Walnuss,Weichkäse,Zimt
+Aprikose,Veggi|Vegan,Hartkäse,Himbeere,Ingwer,Kardamom,Kreuzkümmel,Lamm,Mandel,Mango,Orange,Pfirsich,Pilze,Rose,Rosmarin,Schokolade,Schwein,Vanille,Ziegenkäse,Zimt
+Artischocke,Veggi|Vegan,Auster,Erbsen,Hartkäse,Kartoffel,Lamm,Meeresfrüchte,Minze,Schinken,Schwein,Speck,Trüffel,Zitrone
+Aubergine,Veggi|Vegan,Chili,Ingwer,Knoblauch,Lamm,Muskat,Paprikaschote,Schinken,Tomate,Walnuss,Weichkäse
+Auster,Fisch,Anis,Artischocke,Chili,Ei,Huhn,Kaviar,Meerrettich,Muskat,Petersilie,Pilze,Rind,Schwein,Sellerie,Speck,Wassermelone,Zitrone,Zwiebel
+Avocado,Veggi|Vegan,Ananas,Blauschimmelkäse,Chili,Dill,Erdbeere,Fetter Fisch,Grapefruit,Gurke,Haselnuss,Huhn,Kaffee,Koriandergrün,Limette,Mango,Meeresfrüchte,Minze,Muskat,Schokolade,Speck,Tomate,Weichkäse,Weintraube
+Banane,Veggi|Vegan,Ananas,Anis,Birne,Ei,Erdnuss,Hartkäse,Haselnuss,Huhn,Kaffee,Kardamom,Kaviar,Kirsche,Kokosnuss,Mandel,Pastinake,Schokolade,Speck,Vanille,Walnuss,Zimt
+Basilikum,Veggi|Vegan,Anis,Ei,Gewürznelke,Hartkäse,Himbeere,Huhn,Knoblauch,Kokosnuss,Limette,Meeresfrüchte,Minze,Tomate,Walnuss,Weichkäse,Ziegenkäse,Zitrone
+Birne,Veggi|Vegan,Anis,Apfel,Blauschimmelkäse,Esskastanie,Hartkäse,Haselnuss,Huhn,Kardamom,Käse mit gewaschener Rinde,Mandel,Rind,Schinken,Schokolade,Schwein,Walnuss,Ziegenkäse,Zimt
+Blauschimmelkäse,Veggi,Ananas,Avocado,Birne,Brokkoli,Brunnenkresse,Butternusskürbis,Feige,Grapefruit,Heidelbeere,Huhn,Kohl,Pfirsich,Pilze,Rind,Salbei,Sellerie,Speck,Trüffel,Walnuss,Weintraube
+Blumenkohl,Veggi|Vegan,Brokkoli,Chili,Hartkäse,Kapern,Kartoffel,Kaviar,Knoblauch,Kreuzkümmel,Mandel,Meeresfrüchte,Muskat,Safran,Sardelle,Schokolade,Trüffel,Walnuss
+Blutwurst,Fleisch,Apfel,Ei,Kartoffel,Lamm,Leber,Meeresfrüchte,Minze,Rhabarber,Schokolade,Schwein,Speck,Zwiebel
+Brombeere,Veggi|Vegan,Apfel,Himbeere,Mandel,Pfirsich,Rind,Vanille,Weiße Schokolade,Ziegenkäse
+Brunnenkresse,Veggi|Vegan,Blauschimmelkäse,Ei,Fetter Fisch,Grapefruit,Huhn,Kartoffel,Meeresfrüchte,Orange,Pastinake,Räucherfisch,Rind,Rote Bete,Sardelle,Schwein,Walnuss,Ziegenkäse
+Butternusskürbis,Veggi|Vegan,Apfel,Blauschimmelkäse,Chili,Esskastanie,Limette,Mandel,Meeresfrüchte,Muskat,Pilze,Rosmarin,Salbei,Schwein,Speck,Ziegenkäse,Zimt
+Chili,Veggi|Vegan,Ananas,Anis,Aubergine,Auster,Avocado,Blumenkohl,Brokkoli,Butternusskürbis,Ei,Erdnuss,Fetter Fisch,Hartkäse,Huhn,Ingwer,Kartoffel,Knoblauch,Kohl,Kokosnuss,Koriandergrün,Leber,Limette,Mandel,Mango,Meeresfrüchte,Minze,Olive,Orange,Paprikaschote,Rind,Sardelle,Schokolade,Schwein,Speck,Tomate,Walnuss,Wassermelone,Ziegenkäse,Zitrone
+Dill,Veggi|Vegan,Avocado,Ei,Erbsen,Fetter Fisch,Gurke,Kartoffel,Kokosnuss,Lamm,Meeresfrüchte,Minze,Pilze,Räucherfisch,Rind,Rote Bete,Schwein,Weißfleischiger Fisch,Zitrone
+Ei,Veggi,Anis,Auster,Banane,Basilikum,Blutwurst,Brunnenkresse,Chili,Dill,Erbsen,Fetter Fisch,Huhn,Ingwer,Kartoffel,Kaviar,Kohl,Kokosnuss,Kreuzkümmel,Meeresfrüchte,Muskat,Paprikaschote,Petersilie,Pilze,Räucherfisch,Rind,Rote Bete,Salbei,Sardelle,Schinken,Schwein,Sellerie,Spargel,Speck,Tomate,Trüffel,Vanille,Zitrone,Zwiebel
+Erbsen,Veggi|Vegan,Anis,Artischocke,Dill,Ei,Fetter Fisch,Hartkäse,Huhn,Kartoffel,Lamm,Meeresfrüchte,Meerrettich,Minze,Pastinake,Räucherfisch,Rind,Rosmarin,Schinken,Schwein,Spargel,Speck,Weißfleischiger Fisch,Zwiebel
+Erdbeere,Veggi|Vegan,Ananas,Anis,Avocado,Gurke,Haselnuss,Himbeere,Kokosnuss,Mandel,Melone,Minze,Orange,Pfirsich,Rhabarber,Schokolade,Tomate,Vanille,Weichkäse,Weintraube,Weiße Schokolade,Zimt
+Erdnuss,Veggi|Vegan,Apfel,Banane,Brokkoli,Chili,Gurke,Huhn,Kartoffel,Kokosnuss,Koriandergrün,Lamm,Limette,Meeresfrüchte,Minze,Möhre,Rind,Schokolade,Schwarze Johannisbeere,Schwein,Sellerie,Spargel,Tomate,Vanille,Weintraube,Zimt
+Esskastanie,Veggi|Vegan,Birne,Butternusskürbis,Huhn,Kohl,Lamm,Pilze,Rosmarin,Schinken,Schokolade,Schwein,Sellerie,Vanille
+Feige,Veggi|Vegan,Anis,Blauschimmelkäse,Hartkäse,Haselnuss,Himbeere,Leber,Mandel,Minze,Orange,Schinken,Schokolade,Vanille,Walnuss,Weichkäse,Ziegenkäse,Zimt
+Fetter Fisch,Fisch,Anis,Avocado,Brunnenkresse,Chili,Dill,Ei,Erbsen,Gurke,Ingwer,Kapern,Kartoffel,Knoblauch,Kreuzkümmel,Leber,Limette,Mandel,Meeresfrüchte,Meerrettich,Minze,Petersilie,Pilze,Rhabarber,Rind,Rosmarin,Rote Bete,Schwein,Spargel,Thymian,Zitrone,Zwiebel
+Gewürznelke,Veggi|Vegan,Apfel,Basilikum,Hartkäse,Ingwer,Kaffee,Orange,Pfirsich,Rind,Schwein,Speck,Tomate,Vanille,Zimt,Zwiebel
+Grapefruit,Veggi|Vegan,Ananas,Avocado,Blauschimmelkäse,Brunnenkresse,Meeresfrüchte,Orange,Schwein,Wacholder,Zimt
+Gurke,Veggi|Vegan,Anis,Avocado,Dill,Erdbeere,Erdnuss,Fetter Fisch,Kapern,Knoblauch,Kreuzkümmel,Meeresfrüchte,Melone,Minze,Möhre,Rhabarber,Rose,Schwein,Tomate,Wassermelone,Weißfleischiger Fisch,Ziegenkäse,Zwiebel
+Hartkäse,Veggi,Ananas,Anis,Apfel,Aprikose,Artischocke,Banane,Basilikum,Birne,Blumenkohl,Brokkoli,Chili,Erbsen,Feige,Gewürznelke,Huhn,Kartoffel,Mandel,Meeresfrüchte,Muskat,Orange,Pastinake,Pilze,Rind,Salbei,Sardelle,Spargel,Speck,Tomate,Wacholder,Walnuss,Weintraube,Weißfleischiger Fisch,Zwiebel
+Haselnuss,Veggi|Vegan,Apfel,Avocado,Banane,Birne,Erdbeere,Feige,Himbeere,Huhn,Kaffee,Kaviar,Kirsche,Knoblauch,Mandel,Möhre,Rosmarin,Schokolade,Vanille
+Weißfleischiger Fisch,Fisch,Heidelbeere,Apfel,Blauschimmelkäse,Koriandersamen,Mandel,Pfirsich,Pilze,Vanille,Zimt,Zitrone
+Himbeere,Veggi|Vegan,Ananas,Aprikose,Basilikum,Brombeere,Erdbeere,Feige,Haselnuss,Kokosnuss,Mandel,Minze,Pfirsich,Schokolade,Vanille,Weiße Schokolade,Ziegenkäse
+Huhn,Fleisch,Anis,Auster,Avocado,Banane,Basilikum,Birne,Blauschimmelkäse,Brunnenkresse,Chili,Ei,Erbsen,Erdnuss,Esskastanie,Hartkäse,Haselnuss,Kartoffel,Kaviar,Knoblauch,Kohl,Kokosnuss,Koriandergrün,Limette,Mandel,Meeresfrüchte,Paprikaschote,Pastinake,Pilze,Rose,Safran,Salbei,Sellerie,Speck,Thymian,Tomate,Trüffel,Walnuss,Weintraube,Zitrone,Zwiebel
+Ingwer,Veggi|Vegan,Aprikose,Aubergine,Chili,Ei,Fetter Fisch,Kaffee,Kardamom,Knoblauch,Kohl,Limette,Mandel,Mango,Melone,Minze,Orange,Rhabarber,Rind,Schokolade,Schwein,Tomate,Vanille,Weißfleischiger Fisch,Zimt,Zitrone,Zwiebel
+Kaffee,Veggi|Vegan,Avocado,Banane,Gewürznelke,Haselnuss,Ingwer,Kaffee,Kardamom,Kirsche,Koriandersamen,Mandel,Orange,Rind,Rose,Schokolade,Schwarze Johannisbeere,Vanille,Walnuss,Weiße Schokolade,Ziegenkäse,Zimt
+Kapern,Veggi|Vegan,Blumenkohl,Fetter Fisch,Gurke,Kartoffel,Lamm,Meeresfrüchte,Olive,Petersilie,Räucherfisch,Rind,Rote Bete,Sardelle,Tomate,Weichkäse,Weißfleischiger Fisch,Ziegenkäse,Zitrone
+Kardamom,Veggi|Vegan,Aprikose,Banane,Birne,Ingwer,Kaffee,Kardamom,Kokosnuss,Koriandersamen,Lamm,Mandel,Mango,Möhre,Rose,Safran,Schokolade,Speck,Vanille,Weiße Schokolade,Zimt
+Kartoffel,Veggi|Vegan,Artischocke,Blumenkohl,Blutwurst,Brunnenkresse,Chili,Dill,Ei,Erbsen,Erdnuss,Fetter Fisch,Hartkäse,Huhn,Kapern,Käse mit gewaschener Rinde,Kaviar,Knoblauch,Kohl,Kohlrübe,Koriandergrün,Kreuzkümmel,Lamm,Meeresfrüchte,Meerrettich,Minze,Muskat,Olive,Pastinake,Petersilie,Pilze,Räucherfisch,Rind,Rosmarin,Rote Bete,Safran,Sardelle,Schwein,Sellerie,Spargel,Speck,Tomate,Trüffel,Weißfleischiger Fisch,Zitrone,Zwiebel
+Käse mit gewaschener Rinde,Veggi,Anis,Apfel,Birne,Kartoffel,Knoblauch,Kreuzkümmel,Speck,Walnuss
+Kaviar,Fisch,Auster,Banane,Blumenkohl,Ei,Haselnuss,Huhn,Kartoffel,Räucherfisch,Weichkäse,Weiße Schokolade,Zitrone
+Kirsche,Veggi|Vegan,Banane,Haselnuss,Kaffee,Kokosnuss,Lamm,Mandel,Pfirsich,Räucherfisch,Schokolade,Vanille,Walnuss,Ziegenkäse,Zimt
+Knoblauch,Veggi|Vegan,Aubergine,Basilikum,Blumenkohl,Brokkoli,Chili,Fetter Fisch,Gurke,Haselnuss,Huhn,Ingwer,Kartoffel,Käse mit gewaschener Rinde,Kohl,Koriandergrün,Koriandersamen,Lamm,Leber,Mandel,Meeresfrüchte,Minze,Olive,Petersilie,Pilze,Rind,Rosmarin,Sardelle,Schwein,Thymian,Tomate,Trüffel,Walnuss,Weichkäse,Weißfleischiger Fisch,Ziegenkäse,Zwiebel
+Kohl,Veggi|Vegan,Apfel,Blauschimmelkäse,Chili,Ei,Esskastanie,Huhn,Ingwer,Kartoffel,Knoblauch,Lamm,Meeresfrüchte,Möhre,Muskat,Räucherfisch,Rind,Schwein,Speck,Trüffel,Wacholder,Zwiebel
+Kohlrübe,Veggi|Vegan,Anis,Kartoffel,Lamm,Möhre,Muskat,Rind,Schwein
+Kokosnuss,Veggi|Vegan,Ananas,Anis,Banane,Basilikum,Chili,Dill,Ei,Erdbeere,Erdnuss,Himbeere,Huhn,Kardamom,Kirsche,Koriandergrün,Limette,Mandel,Mango,Meeresfrüchte,Möhre,Räucherfisch,Rind,Rote Bete,Sardelle,Schokolade,Schwein,Vanille,Weiße Schokolade,Weißfleischiger Fisch,Zimt,Zitrone
+Koriandergrün,Veggi|Vegan,Ananas,Avocado,Chili,Erdnuss,Huhn,Kartoffel,Knoblauch,Kokosnuss,Koriandersamen,Kreuzkümmel,Lamm,Limette,Mango,Meeresfrüchte,Minze,Orange,Petersilie,Schwein,Tomate,Wassermelone,Weißfleischiger Fisch,Ziegenkäse,Zitrone
+Koriandersamen,Veggi|Vegan,Apfel,Heidelbeere,Kaffee,Kardamom,Knoblauch,Koriandergrün,Kreuzkümmel,Olive,Orange,Schwein,Ziegenkäse,Zitrone
+Kreuzkümmel,Veggi|Vegan,Aprikose,Blumenkohl,Ei,Fetter Fisch,Gurke,Kartoffel,Käse mit gewaschener Rinde,Koriandergrün,Koriandersamen,Lamm,Limette,Mango,Meeresfrüchte,Minze,Möhre,Rote Bete,Schwein,Zitrone
+Lamm,Fleisch,Anis,Aprikose,Artischocke,Aubergine,Blutwurst,Dill,Erbsen,Erdnuss,Esskastanie,Kapern,Kardamom,Kartoffel,Kirsche,Knoblauch,Kohl,Kohlrübe,Koriandergrün,Kreuzkümmel,Mandel,Meeresfrüchte,Minze,Muskat,Rhabarber,Rosmarin,Safran,Sardelle,Sellerie,Thymian,Tomate,Ziegenkäse,Zimt,Zitrone,Zwiebel
+Leber,Fleisch,Apfel,Blutwurst,Chili,Feige,Fetter Fisch,Knoblauch,Rind,Rote Bete,Salbei,Speck,Trüffel,Zwiebel
+Limette,Veggi|Vegan,Avocado,Basilikum,Butternusskürbis,Chili,Erdnuss,Fetter Fisch,Huhn,Ingwer,Kokosnuss,Koriandergrün,Kreuzkümmel,Mango,Meeresfrüchte,Minze,Orange,Rind,Sardelle,Schokolade,Tomate,Wassermelone,Weißfleischiger Fisch,Zimt,Zitrone
+Mandel,Veggi|Vegan,Anis,Apfel,Aprikose,Banane,Birne,Blumenkohl,Brombeere,Butternusskürbis,Chili,Erdbeere,Feige,Fetter Fisch,Hartkäse,Haselnuss,Heidelbeere,Himbeere,Huhn,Ingwer,Kaffee,Kardamom,Kirsche,Knoblauch,Kokosnuss,Lamm,Meeresfrüchte,Melone,Olive,Orange,Pfirsich,Rhabarber,Rose,Rosmarin,Safran,Schokolade,Schwarze Johannisbeere,Spargel,Weintraube,Weiße Schokolade,Zimt,Zitrone
+Mango,Veggi|Vegan,Ananas,Apfel,Aprikose,Avocado,Chili,Ingwer,Kardamom,Kokosnuss,Koriandergrün,Kreuzkümmel,Limette,Meeresfrüchte,Minze,Orange,Pfirsich,Rhabarber,Weißfleischiger Fisch
+Meeresfrüchte,Fisch,Ananas,Anis,Apfel,Artischocke,Avocado,Basilikum,Blumenkohl,Blutwurst,Brunnenkresse,Butternusskürbis,Chili,Dill,Ei,Erbsen,Erdnuss,Fetter Fisch,Grapefruit,Gurke,Hartkäse,Huhn,Kapern,Kartoffel,Knoblauch,Kohl,Kokosnuss,Koriandergrün,Kreuzkümmel,Lamm,Limette,Mandel,Mango,Muskat,Olive,Paprikaschote,Pastinake,Petersilie,Pilze,Räucherfisch,Rind,Safran,Schwein,Sellerie,Spargel,Speck,Thymian,Tomate,Trüffel,Vanille,Walnuss,Weißfleischiger Fisch,Zitrone
+Meerrettich,Veggi|Vegan,Apfel,Auster,Erbsen,Fetter Fisch,Kartoffel,Räucherfisch,Rind,Rote Bete,Sellerie,Speck,Tomate,Weißfleischiger Fisch
+Melone,Veggi|Vegan,Anis,Erdbeere,Gurke,Ingwer,Mandel,Minze,Orange,Rose,Schinken,Wassermelone,Weintraube
+Minze,Veggi|Vegan,Anis,Artischocke,Avocado,Basilikum,Blutwurst,Chili,Dill,Erbsen,Erdbeere,Erdnuss,Feige,Fetter Fisch,Gurke,Himbeere,Ingwer,Kartoffel,Knoblauch,Koriandergrün,Kreuzkümmel,Lamm,Limette,Mango,Melone,Orange,Petersilie,Pilze,Rind,Schokolade,Schwarze Johannisbeere,Spargel,Wassermelone,Ziegenkäse,Zimt,Zitrone,Zwiebel
+Möhre,Veggi|Vegan,Anis,Apfel,Erdnuss,Gurke,Haselnuss,Kardamom,Kohl,Kohlrübe,Kokosnuss,Kreuzkümmel,Olive,Orange,Petersilie,Rind,Sellerie,Walnuss,Zimt,Zwiebel
+Muskat,Veggi|Vegan,Apfel,Aubergine,Auster,Avocado,Blumenkohl,Butternusskürbis,Ei,Hartkäse,Kartoffel,Kohl,Kohlrübe,Lamm,Meeresfrüchte,Pastinake,Safran,Schokolade,Sellerie,Tomate,Vanille,Walnuss,Zwiebel
+Olive,Veggi|Vegan,Anis,Chili,Kapern,Kartoffel,Knoblauch,Koriandersamen,Mandel,Meeresfrüchte,Möhre,Orange,Paprikaschote,Rind,Rosmarin,Sardelle,Schinken,Thymian,Tomate,Wacholder,Weiße Schokolade,Weißfleischiger Fisch,Ziegenkäse,Zitrone
+Orange,Veggi|Vegan,Ananas,Anis,Apfel,Aprikose,Brunnenkresse,Chili,Erdbeere,Feige,Gewürznelke,Grapefruit,Hartkäse,Ingwer,Kaffee,Koriandergrün,Koriandersamen,Limette,Mandel,Mango,Melone,Minze,Möhre,Olive,Pfirsich,Rhabarber,Rind,Rose,Rosmarin,Rote Bete,Safran,Schokolade,Spargel,Speck,Thymian,Vanille,Wacholder,Walnuss,Weißfleischiger Fisch,Zimt,Zitrone,Zwiebel
+Paprikaschote,Veggi|Vegan,Aubergine,Chili,Ei,Huhn,Meeresfrüchte,Olive,Rind,Speck,Tomate,Weichkäse,Zwiebel
+Pastinake,Veggi|Vegan,Anis,Banane,Brunnenkresse,Erbsen,Hartkäse,Huhn,Kartoffel,Meeresfrüchte,Muskat,Rind,Schwein,Speck,Walnuss,Weißfleischiger Fisch
+Petersilie,Veggi|Vegan,Auster,Ei,Fetter Fisch,Kapern,Kartoffel,Knoblauch,Koriandergrün,Meeresfrüchte,Minze,Möhre,Pilze,Räucherfisch,Rind,Speck,Walnuss,Weißfleischiger Fisch,Zitrone
+Pfirsich,Veggi|Vegan,Aprikose,Blauschimmelkäse,Brombeere,Erdbeere,Gewürznelke,Heidelbeere,Himbeere,Kirsche,Mandel,Mango,Orange,Schinken,Vanille,Weintraube
+Pilze,Veggi|Vegan,Anis,Aprikose,Auster,Blauschimmelkäse,Butternusskürbis,Dill,Ei,Esskastanie,Fetter Fisch,Hartkäse,Heidelbeere,Huhn,Kartoffel,Knoblauch,Meeresfrüchte,Minze,Petersilie,Rind,Rosmarin,Schwein,Spargel,Speck,Thymian,Tomate,Trüffel,Walnuss,Weichkäse,Weißfleischiger Fisch,Ziegenkäse,Zwiebel
+Räucherfisch,Fisch,Brunnenkresse,Dill,Ei,Erbsen,Kapern,Kartoffel,Kaviar,Kirsche,Kohl,Kokosnuss,Meeresfrüchte,Meerrettich,Petersilie,Weichkäse,Zitrone,Zwiebel
+Rhabarber,Veggi|Vegan,Anis,Blutwurst,Erdbeere,Fetter Fisch,Gurke,Ingwer,Lamm,Mandel,Mango,Orange,Rosmarin,Safran,Schwein,Vanille,Wacholder
+Rind,Fleisch,Anis,Auster,Birne,Blauschimmelkäse,Brokkoli,Brombeere,Brunnenkresse,Chili,Dill,Ei,Erbsen,Erdnuss,Fetter Fisch,Gewürznelke,Hartkäse,Ingwer,Kaffee,Kapern,Kartoffel,Knoblauch,Kohl,Kohlrübe,Kokosnuss,Leber,Limette,Meeresfrüchte,Meerrettich,Minze,Möhre,Olive,Orange,Paprikaschote,Pastinake,Petersilie,Pilze,Rote Bete,Sardelle,Schwein,Sellerie,Speck,Thymian,Tomate,Trüffel,Wacholder,Walnuss,Zimt,Zitrone,Zwiebel
+Rose,Veggi|Vegan,Apfel,Aprikose,Gurke,Huhn,Kaffee,Kardamom,Mandel,Melone,Orange,Safran,Schokolade,Zitrone
+Rosmarin,Veggi|Vegan,Aprikose,Butternusskürbis,Erbsen,Esskastanie,Fetter Fisch,Haselnuss,Kartoffel,Knoblauch,Lamm,Mandel,Olive,Orange,Pilze,Rhabarber,Sardelle,Schokolade,Schwein,Wassermelone,Weintraube,Ziegenkäse,Zitrone,Zwiebel
+Rote Bete,Veggi|Vegan,Apfel,Brunnenkresse,Dill,Ei,Fetter Fisch,Kapern,Kartoffel,Kokosnuss,Kreuzkümmel,Leber,Meerrettich,Orange,Rind,Sardelle,Schokolade,Schwein,Walnuss,Ziegenkäse,Zwiebel
+Safran,Veggi|Vegan,Anis,Blumenkohl,Huhn,Kardamom,Kartoffel,Lamm,Mandel,Meeresfrüchte,Muskat,Orange,Rhabarber,Rose,Weiße Schokolade,Weißfleischiger Fisch,Zitrone
+Salbei,Veggi|Vegan,Ananas,Apfel,Blauschimmelkäse,Butternusskürbis,Ei,Hartkäse,Huhn,Leber,Sardelle,Schinken,Schwein,Speck,Tomate,Wacholder,Zwiebel
+Sardelle,Fisch,Ananas,Blumenkohl,Brokkoli,Brunnenkresse,Chili,Ei,Hartkäse,Kapern,Kartoffel,Knoblauch,Kokosnuss,Lamm,Limette,Olive,Rind,Rosmarin,Rote Bete,Salbei,Tomate,Weichkäse,Weißfleischiger Fisch,Zitrone,Zwiebel
+Schinken,Fleisch,Ananas,Artischocke,Aubergine,Birne,Ei,Erbsen,Esskastanie,Feige,Melone,Olive,Pfirsich,Salbei,Sellerie,Spargel,Tomate,Wacholder,Weißfleischiger Fisch
+Schokolade,Veggi,Ananas,Anis,Aprikose,Avocado,Banane,Birne,Blumenkohl,Blutwurst,Chili,Erdbeere,Erdnuss,Esskastanie,Feige,Haselnuss,Himbeere,Ingwer,Kaffee,Kardamom,Kirsche,Kokosnuss,Limette,Mandel,Minze,Muskat,Orange,Rose,Rosmarin,Rote Bete,Schwarze Johannisbeere,Speck,Thymian,Tomate,Vanille,Walnuss,Wassermelone,Weiße Schokolade,Ziegenkäse,Zimt,Zitrone
+Schwarze Johannisbeere,Veggi|Vegan,Anis,Erdnuss,Kaffee,Mandel,Minze,Schokolade,Wacholder,Weichkäse
+Schwein,Fleisch,Ananas,Anis,Apfel,Aprikose,Artischocke,Auster,Birne,Blutwurst,Brokkoli,Brunnenkresse,Butternusskürbis,Chili,Dill,Ei,Erbsen,Erdnuss,Esskastanie,Fetter Fisch,Gewürznelke,Grapefruit,Gurke,Ingwer,Kartoffel,Knoblauch,Kohl,Kohlrübe,Kokosnuss,Koriandergrün,Koriandersamen,Kreuzkümmel,Meeresfrüchte,Pastinake,Pilze,Rhabarber,Rind,Rosmarin,Rote Bete,Salbei,Sellerie,Speck,Thymian,Tomate,Trüffel,Wacholder,Wassermelone,Weintraube,Zimt,Zwiebel
+Sellerie,Veggi|Vegan,Apfel,Auster,Blauschimmelkäse,Ei,Erdnuss,Esskastanie,Huhn,Kartoffel,Lamm,Meeresfrüchte,Meerrettich,Möhre,Muskat,Rind,Schinken,Schwein,Trüffel,Walnuss,Weichkäse,Weißfleischiger Fisch,Zvielbel
+Spargel,Veggi|Vegan,Anis,Ei,Erbsen,Erdnuss,Fetter Fisch,Hartkäse,Kartoffel,Mandel,Meeresfrüchte,Minze,Orange,Pilze,Schinken,Trüffel,Weißfleischiger Fisch,Zitrone
+Speck,Fleisch,Ananas,Anis,Apfel,Artischocke,Auster,Avocado,Banane,Blauschimmelkäse,Blutwurst,Brokkoli,Butternusskürbis,Chili,Ei,Erbsen,Gewürznelke,Hartkäse,Huhn,Kardamom,Kartoffel,Käse mit gewaschener Rinde,Kohl,Leber,Meeresfrüchte,Meerrettich,Orange,Paprikaschote,Pastinake,Petersilie,Pilze,Rind,Salbei,Schokolade,Schwein,Thymian,Tomate,Trüffel,Weißfleischiger Fisch,Zwiebel
+Thymian,Veggi|Vegan,Fetter Fisch,Huhn,Knoblauch,Lamm,Meeresfrüchte,Olive,Orange,Pilze,Rind,Schokolade,Schwein,Speck,Tomate,Ziegenkäse,Zimt,Zitrone,Zwiebel
+Tomate,Veggi|Vegan,Anis,Aubergine,Avocado,Basilikum,Chili,Ei,Erdbeere,Erdnuss,Gewürznelke,Gurke,Hartkäse,Huhn,Ingwer,Kapern,Kartoffel,Knoblauch,Koriandergrün,Lamm,Limette,Meeresfrüchte,Meerrettich,Muskat,Olive,Paprikaschote,Pilze,Rind,Salbei,Sardelle,Schinken,Schokolade,Schwein,Speck,Thymian,Vanille,Wassermelone,Weichkäse,Weißfleischiger Fisch,Zimt,Zitrone,Zwiebel
+Trüffel,Veggi|Vegan,Artischocke,Blauschimmelkäse,Blumenkohl,Ei,Huhn,Kartoffel,Knoblauch,Kohl,Leber,Meeresfrüchte,Pilze,Rind,Schwein,Sellerie,Spargel,Speck,Weichkäse
+Vanille,Veggi|Vegan,Ananas,Anis,Apfel,Aprikose,Banane,Brombeere,Ei,Erdbeere,Erdnuss,Esskastanie,Feige,Gewürznelke,Haselnuss,Heidelbeere,Himbeere,Ingwer,Kaffee,Kardamom,Kirsche,Kokosnuss,Meeresfrüchte,Muskat,Orange,Pfirsich,Rhabarber,Schokolade,Tomate,Walnuss
+Wacholder,Veggi|Vegan,Grapefruit,Hartkäse,Kohl,Olive,Orange,Rhabarber,Rind,Salbei,Schinken,Schwarze Johannisbeere,Schwein,Zitrone
+Walnuss,Veggi|Vegan,Anis,Apfel,Aubergine,Banane,Basilikum,Birne,Blauschimmelkäse,Blumenkohl,Brokkoli,Brunnenkresse,Chili,Feige,Hartkäse,Huhn,Kaffee,Käse mit gewaschener Rinde,Kirsche,Knoblauch,Meeresfrüchte,Möhre,Muskat,Orange,Pastinake,Petersilie,Pilze,Rind,Rote Bete,Schokolade,Sellerie,Vanille,Weichkäse,Weintraube,Ziegenkäse,Zimt
+Wassermelone,Veggi|Vegan,Auster,Chili,Gurke,Koriandergrün,Limette,Melone,Minze,Rosmarin,Schokolade,Schwein,Wassermelone
+Weichkäse,Veggi,Apfel,Aubergine,Avocado,Basilikum,Erdbeere,Feige,Kapern,Knoblauch,Paprikaschote,Pilze,Schwarze Johannisbeere,Sellerie,Tomate,Trüffel,Weichkäse
+Weintraube,Veggi|Vegan,Ananas,Anis,Avocado,Blauschimmelkäse,Erdbeere,Erdnuss,Hartkäse,Huhn,Mandel,Melone,Pfirsich,Rosmarin,Schwein,Walnuss,Ziegenkäse
+Weiße Schokolade,Veggi|Vegan,Ananas,Anis,Brombeere,Erdbeere,Himbeere,Kaffee,Kardamom,Kaviar,Kokosnuss,Mandel,Olive,Safran,Schokolade,Weiße Schokolade
+Ziegenkäse,Veggi,Aprikose,Basilikum,Birne,Brombeere,Butternusskürbis,Chili,Feige,Gurke,Himbeere,Kapern,Kirsche,Knoblauch,Koriandergrün,Koriandersamen,Olive,Pilze,Rote Bete,Rosmarin,Schokolade,Thymian,Walnuss,Weintraube
+Zimt,Veggi|Vegan,Ananas,Anis,Apfel,Aprikose,Birne,Brombeere,Butternusskürbis,Erdbeere,Erdnuss,Ingwer,Kardamom,Kirsche,Kokosnuss,Limette,Mandel,Minze,Möhre,Orange,Rind,Schokolade,Thymian,Vanille,Walnuss,Weiße Schokolade,Zimt
+Zitrone,Veggi|Vegan,Anis,Artischocke,Auster,Basilikum,Brunnenkresse,Dill,Ei,Erdbeere,Fetter Fisch,Gurke,Huhn,Ingwer,Kapern,Kartoffel,Limette,Mandel,Meeresfrüchte,Meerrettich,Minze,Olive,Orange,Petersilie,Räucherfisch,Rose,Rosmarin,Safran,Sardelle,Schokolade,Spargel,Thymian,Vanille,Wassermelone,Zitrone
+Zwiebel,Veggi|Vegan,Anis,Auster,Blutwurst,Ei,Erbsen,Fetter Fisch,Gewürznelke,Gurke,Huhn,Ingwer,Kartoffel,Kohl,Lamm,Minze,Möhre,Muskat,Orange,Pilze,Räucherfisch,Rind,Rosmarin,Rote Bete,Sardelle,Schwein,Sellerie,Speck,Thymian,Tomate,Ziegenkäse`;
+
+function parseData() {
+  const db = {};
+  RAW.split('\n').forEach(line => {
+    const parts = line.split(',');
+    if (parts.length < 2) return;
+    const name = parts[0].trim();
+    const tags = parts[1].trim().toLowerCase().split('|');
+    const pairings = parts.slice(2).map(p => p.trim()).filter(Boolean);
+    db[name] = { tags, pairings };
+  });
+  return db;
+}
+
+const DB = parseData();
+
+function getCategoryIcon(tags) {
+  if (tags.includes('fleisch')) return CAT_ICON.fleisch;
+  if (tags.includes('fisch')) return CAT_ICON.fisch;
+  if (tags.includes('veggi')) return CAT_ICON.veggi;
+  return CAT_ICON.vegan;
+}
+
+function getAllowed(filterVal) {
+  return new Set(Object.keys(DB).filter(name => {
+    const tags = DB[name].tags;
+    if (filterVal === 'vegan') return tags.includes('vegan');
+    if (filterVal === 'veggi') return tags.includes('veggi') || tags.includes('vegan');
+    if (filterVal === 'fisch') return tags.includes('fisch') || tags.includes('veggi') || tags.includes('vegan');
+    if (filterVal === 'fleisch') return tags.includes('fleisch') || tags.includes('veggi') || tags.includes('vegan');
+    return false;
+  }));
+}
+
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function normalize(s) { return s.trim().toLowerCase(); }
+function pairsMatch(a, b) {
+  return (DB[a]?.pairings || []).map(normalize).includes(normalize(b)) || 
+         (DB[b]?.pairings || []).map(normalize).includes(normalize(a));
+}
+
+function generate() {
+  const filterVal = document.getElementById('filter').value;
+  const allowedSet = getAllowed(filterVal);
+  const allowedArr = [...allowedSet];
+
+  if (allowedArr.length < 3) {
+    showError('Zu wenige Zutaten für diesen Filter.');
+    return;
+  }
+
+  let tries = 0, combo = null;
+  while (tries < 1000) {
+    tries++;
+    const t1 = rand(allowedArr);
+    
+    // Finde Partner für t1, die im Filter erlaubt sind
+    const p1 = (DB[t1]?.pairings || []).map(normalize);
+    const candidates2 = allowedArr.filter(t => t !== t1 && p1.includes(normalize(t)));
+    if (candidates2.length === 0) continue;
+    
+    const t2 = rand(candidates2);
+    
+    // Finde Partner, die zu beiden passen
+    const bothPair = allowedArr.filter(t => t !== t1 && t !== t2 && pairsMatch(t, t1) && pairsMatch(t, t2));
+    if (bothPair.length === 0) continue;
+    
+    combo = [t1, t2, rand(bothPair)];
+    break;
+  }
+
+  if (!combo) { 
+    showError('Keine passende Kombination gefunden. Nochmal versuchen!'); 
+    return; 
+  }
+
+  const tDiv = document.getElementById('toppings');
+  tDiv.innerHTML = combo.map(name => {
+    const tags = DB[name]?.tags || [];
+    const icon = getCategoryIcon(tags);
+    return `<div class="pto-card">
+      <div class="pto-card-icon">${icon}</div>
+      <div class="pto-card-name">${name}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('info').textContent = 'Alle drei passen geschmacklich zusammen ✓';
+  document.getElementById('toppings').style.display = 'flex';
+  document.getElementById('empty-state').style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('toppings').style.display = 'none';
+  document.getElementById('info').textContent = msg;
+  document.getElementById('empty-state').style.display = 'block';
+  document.getElementById('empty-state').textContent = '';
+}
+</script>
